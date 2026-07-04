@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Transfer & Kadro Mühendisliği</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/mobile-drag-drop/default.min.css">
+    <script src="https://unpkg.com/mobile-drag-drop/index.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-wrap: wrap; padding: 20px; background: #121212; color: white; margin: 0; gap: 20px; justify-content: center; }
+        
+        #sol-taraf { flex: 1; min-width: 350px; max-width: 450px; display: flex; flex-direction: column; align-items: center; }
+        
+        #saha-alani { display: flex; justify-content: center; align-items: center; width: 100%; }
+        #saha { width: 100%; max-width: 450px; height: 650px; background: #2e7d32; border: 3px solid #fff; position: relative; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); overflow: hidden; }
+        .ceza-sahasi { width: 44%; height: 15%; border: 2px solid white; position: absolute; left: 28%; }
+        .alt { bottom: 0; border-bottom: none; }
+        .ust { top: 0; border-top: none; }
+        .orta-saha-cizgisi { width: 100%; height: 2px; background: white; position: absolute; top: 50%; }
+        .orta-yuvarlak { width: 22%; height: 15%; border: 2px solid white; border-radius: 50%; position: absolute; top: 42.5%; left: 39%; }
+        
+        .slot { width: 80px; height: 45px; background: rgba(255,255,255,0.9); color: black; position: absolute; text-align: center; border-radius: 8px; font-size: 11px; font-weight: bold; display: flex; flex-direction: column; justify-content: center; transition: 0.2s; border: 2px solid transparent; z-index: 5; }
+        
+        /* Sürükleme efekti css sınıfı */
+        .surukleniyor-uzerinde { border-color: #ff9800 !important; box-shadow: 0 0 15px #ff9800; transform: scale(1.15); z-index: 10; background: #fff3e0; }
+        
+        .sil-butonu { position: absolute; top: -6px; right: -6px; background: #f44336; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; line-height: 20px; text-align: center; cursor: pointer; border: 1px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5); font-weight: bold; z-index: 20; }
+        
+        /* Yüzdelik Oranlarla Slot Yerleşimleri (Mobil Uyumluluk İçin) */
+        #gk { bottom: 3%; left: 50%; transform: translateX(-50%); }
+        #rb { bottom: 18%; right: 5%; }
+        #cb1 { bottom: 16%; right: 28%; }
+        #cb2 { bottom: 16%; left: 28%; }
+        #lb { bottom: 18%; left: 5%; }
+        #cm1 { bottom: 36%; right: 30%; }
+        #cm2 { bottom: 36%; left: 30%; }
+        #rm { bottom: 58%; right: 5%; }
+        #amc { bottom: 56%; left: 50%; transform: translateX(-50%); }
+        #lm { bottom: 58%; left: 5%; }
+        #st { top: 6%; left: 50%; transform: translateX(-50%); }
+
+        #yedekler-alani { width: 100%; margin-top: 15px; background: #1e1e1e; padding: 15px; border-radius: 10px; box-sizing: border-box; }
+        #yedekler-baslik { font-weight: bold; margin-bottom: 10px; color: #ff9800; text-align: center; }
+        #yedekler-icerik { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; }
+        
+        .yedek-oyuncu { background: #333; min-width: 100px; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #555; flex-shrink: 0; cursor: grab; user-select: none; }
+        .yedek-oyuncu:active { cursor: grabbing; }
+        
+        #panel { flex: 1; min-width: 300px; max-width: 450px; background: #1e1e1e; padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 15px; height: fit-content; }
+        input, button { width: 100%; padding: 12px; border-radius: 5px; border: none; box-sizing: border-box; font-size: 14px; }
+        input { background: #333; color: white; margin-bottom: 5px; }
+        
+        .buton-diz { background: #4caf50; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; margin-bottom: 10px; }
+        
+        .kural-paneli { background: #333; padding: 15px; border-radius: 5px; text-align: center; font-size: 18px; font-weight: bold; }
+        
+        #oyuncu-listesi { flex: 1; overflow-y: auto; background: #222; border-radius: 5px; padding: 10px; min-height: 300px; max-height: 550px; }
+        .oyuncu-kart { background: #444; padding: 10px; margin-bottom: 8px; border-radius: 8px; cursor: grab; display: flex; flex-direction: row; align-items: center; gap: 15px; transition: 0.1s; user-select: none; }
+        .oyuncu-kart:active { cursor: grabbing; }
+        
+        .oyuncu-foto { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; background: #fff; border: 2px solid #aaa; }
+        .oyuncu-bilgi { display: flex; flex-direction: column; pointer-events: none; }
+        .oyuncu-isim { font-weight: bold; font-size: 14px; color: #fff; }
+        .oyuncu-detay { font-size: 11px; color: #bbb; margin-top: 4px; }
+        .oyuncu-mevki { font-weight: bold; color: #ff9800; }
+        
+        #yukleniyor { color: #ff9800; font-weight: bold; text-align: center; }
+
+        ::-webkit-scrollbar { height: 8px; width: 8px; }
+        ::-webkit-scrollbar-track { background: #222; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div id="sol-taraf">
+        <div id="saha-alani">
+            <div id="saha">
+                <div class="ceza-sahasi ust"></div>
+                <div class="ceza-sahasi alt"></div>
+                <div class="orta-saha-cizgisi"></div>
+                <div class="orta-yuvarlak"></div>
+                
+                <div class="slot" id="st" data-mevki="Forvet" ondragover="suruklemeyeIzinVer(event)" ondragenter="slotVurgula(this)" ondragleave="slotVurguKaldir(this)" ondrop="suruklemeBirakildi(event, this)">Forvet<br><span style="font-size:9px;color:gray">- Boş -</span></div>
+                <div class="slot" id="lm" data-mevki="Sol Kanat" ondragover="suruklemeyeIzinVer(event)" ondragenter="slotVurgula(this)" ondragleave="slotVurguKaldir(this)" ondrop="suruklemeBirakildi(event, this)">Sol Kanat<br><span style="font-size:9px;color:gray">- Boş -</span></div>
+                <div class="slot" id="amc" data-mevki="10 Numara" ondragover="suruklemeyeIzinVer(event)" ondragenter="slotVurgula(this)" ondragleave="slotVurguKaldir(this)" ondrop="suruklemeBirakildi(event, this)">10 Numara<br><span style="font-size:9px;color:gray">- Boş -</span></div>
+                <div class="slot" id="rm" data-mevki="Sağ Kanat" ondragover="suruklemeyeIzinVer(event)" ondragenter="slotVurgula(this)" ondragleave="slotVurguKaldir(this)" ondrop="suruklemeBirakildi(event, this)">Sağ Kanat<br><span style="font-size:9px;color:gray">- Boş -</span></div>
+                <div class="slot" id="cm1" data-mevki="Orta Saha" ondragover="suruklemeyeIzinVer(event)" ondragenter="slotVurgula(this)" ondragleave="slotVurguKaldir(this)" ondrop="suruklemeBirakildi(event, this)">Orta Saha<br><span style="font-size:9px;color:gray">- Boş -</span></div>
+                <div class="slot" id="cm2" data-mevki="Orta Saha" ondragover="suruklemeyeIzinVer(event)" ondragenter="slotVurgula(this)" ondragleave="slotVurguKaldir(this)" ondrop="suruklemeBirakildi(event, this)">Orta Saha<br><span style="font-size:9px;color:gray">- Boş -</span></div>
+                <div class="slot" id="lb" data-mevki="Sol Bek" ondragover="suruklemeyeIzinVer(event)" ondragenter="slotVurgula(this)" ondragleave="slotVurguKaldir(this)" ondrop="suruklemeBirakildi(event, this)">Sol Bek<br><span style="font-size:9px;color:gray">- Boş -</span></div>
+                <div class="slot" id="cb1" data-mevki="Stoper" ondragover="suruklemeyeIzinVer(event)" ondragenter="slotVurgula(this)" ondragleave="slotVurguKaldir(this)" ondrop="suruklemeBirakildi(event, this)">Stoper<br><span style="font-size:9px;color:gray">- Boş -</span></div>
+                <div class="slot" id="cb2" data-mevki="Stoper" ondragover="suruklemeyeIzinVer(event)" ondragenter="slotVurgula(this)" ondragleave="slotVurguKaldir(this)" ondrop="suruklemeBirakildi(event, this)">Stoper<br><span style="font-size:9px;color:gray">- Boş -</span></div>
+                <div class="slot" id="rb" data-mevki="Sağ Bek" ondragover="suruklemeyeIzinVer(event)" ondragenter="slotVurgula(this)" ondragleave="slotVurguKaldir(this)" ondrop="suruklemeBirakildi(event, this)">Sağ Bek<br><span style="font-size:9px;color:gray">- Boş -</span></div>
+                <div class="slot" id="gk" data-mevki="Kaleci" ondragover="suruklemeyeIzinVer(event)" ondragenter="slotVurgula(this)" ondragleave="slotVurguKaldir(this)" ondrop="suruklemeBirakildi(event, this)">Kaleci<br><span style="font-size:9px;color:gray">- Boş -</span></div>
+            </div>
+        </div>
+
+        <div id="yedekler-alani">
+            <div id="yedekler-baslik">Yedek Kulübesi (Mobilde Sürüklemek İçin Basılı Tut)</div>
+            <div id="yedekler-icerik">
+                <div style="color: gray; font-size: 12px; margin: auto;">Kadro otomatik dizildiğinde yedekler burada listelenir.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="panel">
+        <div class="kural-paneli">
+            Sahadaki Yabancı: <span id="yabanci-sayisi" style="color: #4caf50;">0</span>
+            <div id="kural-uyari" style="font-size: 12px; color: red; margin-top: 5px;"></div>
+        </div>
+
+        <div>
+            <input type="text" id="takim-filtre" placeholder="Takım ara (Örn: Besiktas)..." onkeyup="oyunculariFiltrele()">
+            <button class="buton-diz" onclick="takimiOtomatikDiz()">Takımı Sahaya Otomatik Diz</button>
+            <input type="text" id="arama" placeholder="Ayrıca oyuncu ara (Örn: Talisca)..." onkeyup="oyunculariFiltrele()">
+        </div>
+
+        <div id="yukleniyor">Veritabanı İndiriliyor... Lütfen Bekle!</div>
+        
+        <div id="oyuncu-listesi"></div>
+    </div>
+
+    <script>
+        // Mobil Cihazlar İçin Sürükle-Bırak Aktifleştirici
+        MobileDragDrop.polyfill({
+            holdToDrag: 250 // Sürüklemenin başlaması için çeyrek saniye parmağı basılı tutmak gerekir
+        });
+        window.addEventListener('touchmove', function() {}, {passive: false});
+
+        const csvUrl = "https://raw.githubusercontent.com/ismailoksuz/EAFC26-DataHub/main/data/players.csv";
+        let tumOyuncular = [];
+        let aktifSuruklenen = null; // Havada olan oyuncuyu tutan hafıza
+        const yedekFoto = "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
+        
+        const silButonuHtml = '<div class="sil-butonu" title="Oyuncuyu Çıkar" onclick="oyuncuyuSil(event, this)">✖</div>';
+
+        function mevkiCevir(hamMevki) {
+            const mevkiSozlugu = {
+                "GK": "Kaleci", "CB": "Stoper", "LB": "Sol Bek", "RB": "Sağ Bek", 
+                "LWB": "Sol K. Bek", "RWB": "Sağ K. Bek", "CDM": "Ön Libero", "CM": "Orta Saha", 
+                "CAM": "10 Numara", "LM": "Sol Kanat", "RM": "Sağ Kanat", "LW": "Sol Açık", 
+                "RW": "Sağ Açık", "CF": "Santrfor", "ST": "Forvet"
+            };
+            let temizMevki = hamMevki.split(',')[0].trim().toUpperCase(); 
+            return mevkiSozlugu[temizMevki] || temizMevki;
+        }
+
+        Papa.parse(csvUrl, {
+            download: true,
+            header: true, 
+            skipEmptyLines: true,
+            complete: function(results) {
+                tumOyuncular = results.data;
+                document.getElementById('yukleniyor').style.display = 'none';
+                oyunculariFiltrele(); 
+            }
+        });
+
+        // --- SÜRÜKLE BIRAK MOTORU ---
+        function suruklemeBasladi(event, isim, uyruk) {
+            aktifSuruklenen = { isim: isim, uyruk: uyruk };
+            if(event.dataTransfer) {
+                event.dataTransfer.setData("text/plain", isim);
+                event.dataTransfer.effectAllowed = "move";
+            }
+        }
+
+        function suruklemeyeIzinVer(event) {
+            event.preventDefault(); // Html5 gereksinimi
+            if(event.dataTransfer) event.dataTransfer.dropEffect = "move";
+        }
+
+        function slotVurgula(slotElementi) {
+            slotElementi.classList.add('surukleniyor-uzerinde');
+        }
+
+        function slotVurguKaldir(slotElementi) {
+            slotElementi.classList.remove('surukleniyor-uzerinde');
+        }
+
+        function suruklemeBirakildi(event, slotElementi) {
+            event.preventDefault();
+            slotVurguKaldir(slotElementi);
+            
+            if (aktifSuruklenen) {
+                // Sürüklenen oyuncuyu slota yerleştir
+                slotElementi.innerHTML = silButonuHtml + aktifSuruklenen.isim;
+                slotElementi.setAttribute("data-uyruk", aktifSuruklenen.uyruk);
+                kuralKontrolEt();
+                aktifSuruklenen = null; // Hafızayı temizle
+            }
+        }
+        // -----------------------------
+
+        function oyunculariFiltrele() {
+            let aramaMetni = document.getElementById('arama').value.toLowerCase();
+            let takimMetni = document.getElementById('takim-filtre').value.toLowerCase();
+            let listeDiv = document.getElementById('oyuncu-listesi');
+            listeDiv.innerHTML = ""; 
+
+            let sonuclar = tumOyuncular.filter(oyuncu => {
+                let gercekIsim = (oyuncu.Name || oyuncu.short_name || oyuncu.KnownAs || "").toLowerCase();
+                let gercekTakim = (oyuncu.Club || oyuncu.club_name || oyuncu.Team || "").toLowerCase();
+                
+                if (gercekIsim === "" && gercekTakim === "") return false;
+                return gercekIsim.includes(aramaMetni) && gercekTakim.includes(takimMetni);
+            });
+
+            sonuclar.slice(0, 50).forEach(oyuncu => {
+                let isim = oyuncu.Name || oyuncu.short_name || oyuncu.KnownAs || "İsimsiz";
+                let takim = oyuncu.Club || oyuncu.club_name || "Serbest";
+                let uyruk = oyuncu.Nationality || oyuncu.nationality_name || "Bilinmiyor";
+                let mevki = mevkiCevir(oyuncu.Position || oyuncu.player_positions || "Bilinmiyor");
+                let foto = oyuncu.Photo || oyuncu.player_face_url || yedekFoto;
+
+                let kart = document.createElement("div");
+                kart.className = "oyuncu-kart";
+                kart.draggable = true; // Sürüklenebilir yaptık
+                
+                kart.innerHTML = `
+                    <img src="${foto}" class="oyuncu-foto" alt="foto" onerror="this.src='${yedekFoto}'">
+                    <div class="oyuncu-bilgi">
+                        <span class="oyuncu-isim">${isim}</span>
+                        <span class="oyuncu-detay"><span class="oyuncu-mevki">${mevki}</span> | ${takim}</span>
+                    </div>
+                `;
+                
+                // Oyuncu kartı sürüklenmeye başlandığında çalışır
+                kart.ondragstart = function(event) {
+                    suruklemeBasladi(event, isim, uyruk);
+                };
+                
+                listeDiv.appendChild(kart);
+            });
+        }
+
+        function takimiOtomatikDiz() {
+            let arananTakim = document.getElementById('takim-filtre').value.toLowerCase().trim();
+            if (arananTakim.length < 3) {
+                alert("Lütfen arama kutusuna geçerli bir takım adı yazın (Örn: Besiktas)");
+                return;
+            }
+
+            let takimOyunculari = tumOyuncular.filter(oyuncu => {
+                let takim = (oyuncu.Club || oyuncu.club_name || oyuncu.Team || "").toLowerCase();
+                return takim.includes(arananTakim);
+            });
+
+            if (takimOyunculari.length === 0) {
+                alert("Bu takım bulunamadı veya veri tabanında oyuncusu yok! Türkçe karakterleri (ş,ğ) deneyebilirsiniz.");
+                return;
+            }
+
+            takimOyunculari.sort((a, b) => {
+                let reytingA = parseInt(a.Overall || a.overall || 0);
+                let reytingB = parseInt(b.Overall || b.overall || 0);
+                return reytingB - reytingA;
+            });
+
+            document.querySelectorAll('.slot').forEach(s => {
+                let orijinalMevki = s.getAttribute("data-mevki");
+                s.innerHTML = orijinalMevki + '<br><span style="font-size:9px;color:gray">- Boş -</span>';
+                s.removeAttribute("data-uyruk");
+            });
+
+            let sahayaCikanlar = new Set(); 
+
+            function slotaAta(mevkiDizisi, slotId) {
+                for (let i = 0; i < takimOyunculari.length; i++) {
+                    let o = takimOyunculari[i];
+                    let isim = o.Name || o.short_name || o.KnownAs;
+                    
+                    if (sahayaCikanlar.has(isim)) continue; 
+                    
+                    let pPos = (o.Position || o.player_positions || o.Best_Position || "").toUpperCase();
+                    let uygunMu = mevkiDizisi.some(m => pPos.includes(m));
+                    
+                    if (uygunMu) {
+                        let slot = document.getElementById(slotId);
+                        slot.innerHTML = silButonuHtml + isim;
+                        slot.setAttribute("data-uyruk", o.Nationality || o.nationality_name);
+                        sahayaCikanlar.add(isim);
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            slotaAta(["GK"], "gk");
+            slotaAta(["RB", "RWB"], "rb");
+            slotaAta(["LB", "LWB"], "lb");
+            slotaAta(["CB"], "cb1");
+            slotaAta(["CB"], "cb2");
+            slotaAta(["CDM", "CM"], "cm1");
+            slotaAta(["CM", "CAM"], "cm2");
+            slotaAta(["RM", "RW"], "rm");
+            slotaAta(["LM", "LW"], "lm");
+            slotaAta(["CAM", "CF"], "amc");
+            slotaAta(["ST", "CF"], "st");
+
+            let bosSlotlar = Array.from(document.querySelectorAll('.slot')).filter(s => s.innerHTML.includes("- Boş -"));
+            bosSlotlar.forEach(slot => {
+                for (let i = 0; i < takimOyunculari.length; i++) {
+                    let o = takimOyunculari[i];
+                    let isim = o.Name || o.short_name || o.KnownAs;
+                    if (!sahayaCikanlar.has(isim)) {
+                        slot.innerHTML = silButonuHtml + isim;
+                        slot.setAttribute("data-uyruk", o.Nationality || o.nationality_name);
+                        sahayaCikanlar.add(isim);
+                        break;
+                    }
+                }
+            });
+
+            let yedeklerHtml = "";
+            takimOyunculari.forEach(o => {
+                let isim = o.Name || o.short_name || o.KnownAs;
+                if (!sahayaCikanlar.has(isim)) {
+                    let mevki = mevkiCevir(o.Position || o.player_positions || "Bilinmiyor");
+                    let uyruk = o.Nationality || o.nationality_name || "Bilinmiyor";
+                    // İsimde kesme işareti (') varsa kodu bozmaması için temizleme
+                    let guvenliIsim = isim.replace(/'/g, "\\'"); 
+                    
+                    yedeklerHtml += `
+                        <div class="yedek-oyuncu" draggable="true" ondragstart="suruklemeBasladi(event, '${guvenliIsim}', '${uyruk}')">
+                            <span style="font-weight:bold; font-size:12px; color:white;">${isim}</span><br>
+                            <span style="font-size:10px; color:#ff9800;">${mevki}</span>
+                        </div>
+                    `;
+                }
+            });
+            
+            document.getElementById('yedekler-icerik').innerHTML = yedeklerHtml || "<span style='color:gray'>Yedek oyuncu yok.</span>";
+            kuralKontrolEt();
+        }
+
+        function oyuncuyuSil(event, silButonuElementi) {
+            event.stopPropagation(); 
+            let slotElementi = silButonuElementi.parentElement;
+            let orijinalMevki = slotElementi.getAttribute("data-mevki");
+            
+            slotElementi.innerHTML = orijinalMevki + '<br><span style="font-size:9px;color:gray">- Boş -</span>';
+            slotElementi.removeAttribute("data-uyruk");
+            
+            kuralKontrolEt();
+        }
+
+        function kuralKontrolEt() {
+            let yabanciSayisi = 0;
+            document.querySelectorAll('.slot').forEach(slot => {
+                let uyruk = slot.getAttribute("data-uyruk");
+                if (uyruk) {
+                    let metin = uyruk.toLowerCase();
+                    if (!metin.includes("turkey") && !metin.includes("türkiye")) {
+                        yabanciSayisi++;
+                    }
+                }
+            });
+
+            let sayac = document.getElementById('yabanci-sayisi');
+            sayac.innerText = yabanciSayisi;
+
+            if (yabanciSayisi > 10) { 
+                sayac.style.color = "red";
+                document.getElementById('kural-uyari').innerText = "Dikkat: İlk 11'de kural limitini aştın!";
+            } else {
+                sayac.style.color = "#4caf50"; 
+                document.getElementById('kural-uyari').innerText = "";
+            }
+        }
+    </script>
+</body>
+</html>
